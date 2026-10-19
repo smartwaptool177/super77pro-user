@@ -1,0 +1,1 @@
+{"rules":{"users":{"$uid":{".read":"auth!=null&&(auth.uid===$uid||auth.token.admin===true)","profile":{".write":"auth.uid===$uid"},"wallet":{".write":false},"tx":{".write":false}}},"settings":{".read":"auth!=null",".write":"auth.token.admin===true"},"results":{".read":"auth!=null",".write":false}}}

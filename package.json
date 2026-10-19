@@ -1,0 +1,17 @@
+{
+  "name": "super77pro",
+  "version": "1.1.0",
+  "private": true,
+  "scripts": {
+    "sync": "npx cap sync android",
+    "test": "python3 tests/e2e.py ."
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/core": "^6.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
+  }
+}
