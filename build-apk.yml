@@ -1,0 +1,73 @@
+name: Build APK
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Finds the project in any of these layouts:
+      #  1. normal layout at repo root (www/, capacitor.config.json)
+      #  2. project inside a sub-folder (e.g. super77pro/)
+      #  3. project uploaded as a .zip (root or sub-folder)
+      - name: Locate project
+        run: |
+          set -e
+          DIR=""
+
+          # 1) Repo root
+          if [ -f capacitor.config.json ] && [ -d www ]; then
+            DIR=.
+          fi
+
+          # 2) Sub-folder (up to 3 levels deep)
+          if [ -z "$DIR" ]; then
+            CFG=$(find . -maxdepth 3 -name capacitor.config.json -not -path '*/node_modules/*' -not -path './_src/*' | head -n1 || true)
+            if [ -n "$CFG" ] && [ -d "$(dirname "$CFG")/www" ]; then
+              DIR=$(dirname "$CFG")
+            fi
+          fi
+
+          # 3) A .zip anywhere near the root
+          if [ -z "$DIR" ]; then
+            ZIP=$(find . -maxdepth 2 -iname '*.zip' -not -path './.git/*' | head -n1 || true)
+            if [ -n "$ZIP" ]; then
+              echo "Using project from $ZIP"
+              sudo apt-get install -y unzip >/dev/null 2>&1 || true
+              unzip -q -o "$ZIP" -d _src
+              CFG=$(find _src -name capacitor.config.json -not -path '*/node_modules/*' | head -n1 || true)
+              if [ -n "$CFG" ]; then DIR=$(dirname "$CFG"); fi
+            fi
+          fi
+
+          if [ -z "$DIR" ] || [ ! -d "$DIR/www" ]; then
+            echo "::error::No project found (need capacitor.config.json + www/). Repo contents are listed below."
+            ls -la
+            find . -maxdepth 2 -not -path './.git/*' | head -n 60
+            exit 1
+          fi
+
+          echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+          echo "Project directory: $DIR"; ls "$DIR"
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+
+      - name: Build debug APK
+        run: |
+          set -e
+          cd "$PROJECT_DIR"
+          npm install
+          npx cap add android
+          npx @capacitor/assets generate --android
+          npx cap sync android
+          chmod +x android/gradlew
+          cd android && ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: super77pro-apk
+          path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
